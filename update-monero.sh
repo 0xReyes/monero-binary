@@ -1,7 +1,13 @@
 #!/bin/bash
 set -e
 
-VERSION=$(curl -s https://www.getmonero.org/downloads/ | grep -oP 'monero-linux-x64-v\K[0-9.]+(?=\.tar\.bz2)' | head -n 1)
+PAGE=$(curl -s https://www.getmonero.org/downloads/)
+VERSION=$(echo "$PAGE" | grep -oE 'monero-linux-x64-v[0-9.]+\.tar\.bz2' | head -n 1 | sed -E 's/monero-linux-x64-v([0-9.]+)\.tar\.bz2/\1/')
+
+if [ -z "$VERSION" ]; then
+  echo "Failed to fetch latest version." >&2
+  exit 1
+fi
 
 echo "Latest version: $VERSION"
 
