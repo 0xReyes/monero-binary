@@ -1,33 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1) Direct “latest” redirect URL
+# 1) Latest “smart” redirect
 DOWNLOAD_URL="https://downloads.getmonero.org/cli/linux64"
 
-# 2) Download the tarball (follows redirect automatically)
+# 2) Download tarball
 curl -fsSL "$DOWNLOAD_URL" -o monero.tar.bz2
 
-# 3) Peek inside to get the root dir (e.g. monero-x86_64-linux-gnu-v0.18.4.0)
+# 3) Find the root directory inside the tar
 ROOT_DIR=$(tar -tf monero.tar.bz2 | head -n1 | cut -d/ -f1)
 
-# 4) Extract version from that dir name
-VERSION=$(echo "$ROOT_DIR" | sed -E 's/monero-.*-v([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$/\1/')
-
-echo "Latest Monero CLI version: $VERSION"
-
-# 5) Remove any previous build & extract quietly
+# 4) Extract only the wallet CLI into a fresh folder
 rm -rf monero
-tar -xjf monero.tar.bz2
+mkdir monero
+tar -xjf monero.tar.bz2 --strip-components=1 -C monero "$ROOT_DIR/monero-wallet-cli"
 
-# 6) Rename to a stable folder
-mv "$ROOT_DIR" monero
-
-# 7) Cleanup
+# 5) Clean up
 rm monero.tar.bz2
 
-# 8) Verify
+# 6) Verify
 if [[ -x monero/monero-wallet-cli ]]; then
-  echo "✅ monero-wallet-cli is present and executable"
+  echo "✅ monero-wallet-cli v${ROOT_DIR##*-v} pulled successfully"
+  ls -lh monero/monero-wallet-cli
 else
   echo "❌ Error: monero-wallet-cli missing or not executable" >&2
   exit 1
