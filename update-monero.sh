@@ -1,37 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Direct “latest” redirect URL
-REDIRECT_URL="https://downloads.getmonero.org/cli/linux64"
+# 1) Direct “latest” redirect URL
+DOWNLOAD_URL="https://downloads.getmonero.org/cli/linux64"
 
-# Fetch the real download location (follow the redirect headers)
-DOWNLOAD_URL=$(curl -fsSI "$REDIRECT_URL" \
-  | grep -i '^Location:' \
-  | head -n1 \
-  | awk '{print $2}' \
-  | tr -d '\r')
+# 2) Download the tarball (follows redirect automatically)
+curl -fsSL "$DOWNLOAD_URL" -o monero.tar.bz2
 
-if [[ -z "$DOWNLOAD_URL" ]]; then
-  echo "Error: couldn’t resolve latest Monero URL" >&2
-  exit 1
-fi
+# 3) Peek inside to get the root dir (e.g. monero-x86_64-linux-gnu-v0.18.4.0)
+ROOT_DIR=$(tar -tf monero.tar.bz2 | head -n1 | cut -d/ -f1)
 
-# Derive version from the filename
-VERSION=$(basename "$DOWNLOAD_URL" | sed -E 's/monero-linux-x64-v([0-9.]+)\.tar\.bz2/\1/')
+# 4) Extract version from that dir name
+VERSION=$(echo "$ROOT_DIR" | sed -E 's/monero-.*-v([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$/\1/')
 
 echo "Latest Monero CLI version: $VERSION"
 
-# Clean up old files
-rm -rf monero monero.tar.bz2
+# 5) Remove any previous build & extract quietly
+rm -rf monero
+tar -xjf monero.tar.bz2
 
-# Download & extract
-curl -fsSL "$REDIRECT_URL" -o monero.tar.bz2
-tar -xvjf monero.tar.bz2
-
-# Move extracted folder to a consistent name
-ROOT_DIR=$(tar -tf monero.tar.bz2 | head -1 | cut -d/ -f1)
+# 6) Rename to a stable folder
 mv "$ROOT_DIR" monero
+
+# 7) Cleanup
 rm monero.tar.bz2
 
-# Verify
-ls -lh monero/monero-wallet-cli
+# 8) Verify
+if [[ -x monero/monero-wallet-cli ]]; then
+  echo "✅ monero-wallet-cli is present and executable"
+else
+  echo "❌ Error: monero-wallet-cli missing or not executable" >&2
+  exit 1
+fi
